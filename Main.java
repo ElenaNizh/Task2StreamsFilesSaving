@@ -1,77 +1,96 @@
-import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-
-// 1. Создать три экземпляра класса GameProgress.
 public class Main {
+
     public static void main(String[] args) {
-        GameProgress gameProgress = new GameProgress(100, 2, 2, 5.5);
-        GameProgress gameProgress2 = new GameProgress(76, 4, 12, 35.2);
-        GameProgress gameProgress3 = new GameProgress(88, 8, 45, 65.7);
 
-        //2.Сохранить сериализованные объекты GameProgress в папку savegames.
-        Map<String, GameProgress> map = new HashMap<>();
-        map.put("/Users/dns/Games/savegames/save1.txt", gameProgress);
-        map.put("/Users/dns/Games/savegames/save2.txt", gameProgress2);
-        map.put("/Users/dns/Games/savegames/save3.txt", gameProgress3);
+        String dirPathSave = "/Users/dns/Games/savegames/";
+        String zipNameFile = "zip.zip";
+        String zipPathFile = dirPathSave + zipNameFile;
+        List<String> filesSaves = new ArrayList<>();
 
-        saveGame(map);
+        //Создайте три экземпляра класса GameProgress.
+        List<GameProgress> gameProgress = Arrays.asList(
+                new GameProgress(85, 4, 13, 17.4),
+                new GameProgress(60, 2, 20, 70.2),
+                new GameProgress(30, 1, 11, 12.3)
+        );
 
-
-        //3.Созданные файлы сохранений из папки savegames запаковать в архив zip.
-        zipFiles("/Users/dns/Games/savegames/saves.zip", map);
-
-        //4.Удалить файлы сохранений, лежащие вне архива.
-        deleteExcessFiles();
+        savingGameProgressObjects(gameProgress, dirPathSave, filesSaves);
+        zipFiles(zipPathFile, filesSaves);
+        filesSavesDeleting(dirPathSave);
     }
 
+    //Реализуйте метод saveGame(), принимающий в качестве аргументов полный путь к файлу типа String
+   // (например, "/Users/admin/Games/GunRunner/savegames/save3.dat") и объект класса GameProgress.
+  ////  Для записи Вам потребуются такие классы как FileOutputStream и ObjectOutputStream.
+   // У последнего есть метод writeObject(),     подходящий для записи сериализованного объекта .
+  //  о избежание утечек памяти, не забудьте либо использовать try с ресурсами,
+  //  либо вручную закрыть файловые стримы (это касается всех случаев работы с файловыми потоками).
 
-    public static void saveGame(Map<String, GameProgress> map) {
-        for (Map.Entry<String, GameProgress> entries : map.entrySet()) {
-            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(entries.getKey()))) {
-                oos.writeObject(entries.getValue());
-            } catch (IOException e) {
-                System.out.println(e.getMessage());
-            }
-        }
-
-    }
-
-
-    public static void zipFiles(String path, Map<String, GameProgress> map) {
-        Set<String> paths = map.keySet();
-        int counter = 1;
-        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(path))) {
-            for (String s : paths) {
-                FileInputStream fis = new FileInputStream(s);
-                ZipEntry zipEntry = new ZipEntry(path + "/packedTest" + counter + ".txt");
-                counter++;
-                zos.putNextEntry(zipEntry);
-                byte[] bytes = new byte[fis.available()];
-                fis.read(bytes);
-                fis.close();
-                zos.write(bytes);
-                zos.closeEntry();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+    public static void savingGameProgressObjects(List<GameProgress> gameProgress, String dirPathSave, List<String> filesSaves) {
+        for (int i = 0; i < gameProgress.size(); i++) {
+            String fileNameSave = "save" + i + ".dat";
+            String filePathSave = dirPathSave + fileNameSave;
+            saveGame(filePathSave, gameProgress.get(i));
+            filesSaves.add(filePathSave);
+            System.out.println("Создаем файл сохранений \"" + filePathSave + "\"");
         }
     }
 
-    //4.Удалить файлы сохранений, лежащие вне архива.
-    public static void deleteExcessFiles() {
-        File files = new File("/Users/dns/Games/savegames");
-        if (files.isDirectory()) {
-            for (File file : files.listFiles()) {
-                if (!file.getName().contains(".zip")) {
-                    file.delete();
+    public static void saveGame(String filePathSave, GameProgress gameProgress) {
+        try (FileOutputStream fos = new FileOutputStream(filePathSave);
+             ObjectOutputStream oos = new ObjectOutputStream(fos)) {
+            oos.writeObject(gameProgress);
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage(
+            ));
+        }
+    }
+    //Далее реализуйте метод zipFiles(), принимающий в качестве аргументов String полный путь к файлу архива
+  //  (например, "/Users/admin/Games/GunRunner/savegames/zip.zip") и список запаковываемых объектов в виде
+   // списка строчек String полного пути к файлу (например, "/Users/admin/Games/GunRunner/savegames/save3.dat").
+    //В методе Вам потребуется реализовать блок try-catch с объектами ZipOutputStream и FileOutputStream.
+   // Внутри него пробегитесь по списку файлов и для каждого организуйте запись в блоке try-catch через FileInputStream.
+   // Для этого создайте экземпляр ZipEntry и уведомьте ZipOutputStream о новом элементе архива с помощью метода putNextEntry().
+   // Далее необходимо считать упаковываемый файл с помощью метода read() и записать его с помощью метода write().
+    //После чего уведомьте ZipOutputStream о записи файла в архив с помощью метода closeEntry().
+
+    public static void zipFiles(String zipPathFile, List<String> filesSaves) {
+        try (FileOutputStream fos = new FileOutputStream(zipPathFile);
+             ZipOutputStream zout = new ZipOutputStream(fos)) {
+            for (String fileSave : filesSaves) {
+                File fileZip = new File(fileSave);
+                try (FileInputStream fis = new FileInputStream(fileZip)) {
+                    ZipEntry zipEntry = new ZipEntry(fileZip.getName());
+                    zout.putNextEntry(zipEntry);
+                    byte[] buffer = new byte[fis.available()];
+                    fis.read(buffer);
+                    zout.write(buffer);
+                    zout.closeEntry();
+                    System.out.println("Файл \"" + fileSave + "\" добавлен в архив " + "\"" + zipPathFile + "\"");
+                } catch (Exception ex) {
+                    System.out.println(ex.getMessage());
                 }
             }
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
         }
-
     }
+
+    public static void filesSavesDeleting(String dirPathSave) {
+        Arrays.stream(new File(dirPathSave).listFiles())
+                .filter(x -> !x.getName().contains("zip.zip"))
+                .forEach(File::delete);
+        System.out.println("Файлы сохранений не лежащие в архиве удалены из " + "\"" + dirPathSave + "\"");
+    }
+
 }
